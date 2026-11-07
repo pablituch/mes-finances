@@ -36,3 +36,9 @@ jobs:
         run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Description de la Release = NOUVEAUTES.md (affichée dans l'app au moment de proposer la mise à jour)
+      - name: Nouveautés
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "v${{ steps.v.outputs.version }}" --notes-file NOUVEAUTES.md || true

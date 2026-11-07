@@ -40,10 +40,7 @@
         "repo": "mes-finances",
         "releaseType": "release"
       }
-    ],
-    "releaseInfo": {
-      "releaseNotesFile": "NOUVEAUTES.md"
-    }
+    ]
   },
   "devDependencies": {
     "electron": "^33.2.0",
