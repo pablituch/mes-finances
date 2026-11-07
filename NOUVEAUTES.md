@@ -1,4 +1,3 @@
-- Taux de change automatique (Banque centrale européenne), vérifié toutes les 6 h, avec bouton « Actualiser »
-- Un seul taux pour tout : fin de l'écart entre la saisie (×0,62) et l'affichage (×1,62)
-- Les montants saisis en $ CA restent exacts : 1 787 $ s'affiche toujours 1 787 $
-- Tes anciennes opérations converties retrouvent automatiquement leur montant d'origine en $
+- Changer la devise principale convertit maintenant vraiment tous les montants (opérations, budgets, objectifs)
+- Passer de € à $ CA et revenir redonne exactement les mêmes chiffres
+- Option « Changer seulement le symbole » pour corriger une devise mal choisie sans toucher aux chiffres

@@ -402,20 +402,24 @@ function rateInfo() {
   const h = Math.floor((Date.now() - s.rateAt) / 3600e3), m = Math.floor((Date.now() - s.rateAt) / 60e3);
   return `Vérifié ${m < 1 ? "à l'instant" : h < 1 ? `il y a ${m} min` : `il y a ${h} h`}${s.rateDate ? ` · taux du ${s.rateDate.split('-').reverse().join('/')}` : ''} · ${s.rateSrc}`;
 }
+async function fetchRate(from, to) {
+  const get = async url => { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw 0; return r.json(); };
+  const sources = [
+    async () => { const j = await get(`https://api.frankfurter.dev/v1/latest?base=${from}&symbols=${to}`); return { rate: j.rates[to], date: j.date, src: 'Banque centrale européenne' }; },
+    async () => { const j = await get(`https://api.frankfurter.app/latest?from=${from}&to=${to}`); return { rate: j.rates[to], date: j.date, src: 'Banque centrale européenne' }; },
+    async () => { const j = await get(`https://open.er-api.com/v6/latest/${from}`); return { rate: j.rates[to], date: new Date(j.time_last_update_unix * 1000).toISOString().slice(0, 10), src: 'ExchangeRate-API' }; },
+  ];
+  for (const src of sources) { try { const x = await src(); if (x.rate > 0) return x; } catch {} }
+  return null;
+}
 async function refreshRate(force) {
   const s = S.settings;
   if (!s.rateAuto || s.cur === s.sec) return false;
   if (!force && s.rateAt && Date.now() - s.rateAt < RATE_EVERY) return false;
-  const get = async url => { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw 0; return r.json(); };
-  const sources = [
-    async () => { const j = await get(`https://api.frankfurter.dev/v1/latest?base=${s.cur}&symbols=${s.sec}`); return { rate: j.rates[s.sec], date: j.date, src: 'Banque centrale européenne' }; },
-    async () => { const j = await get(`https://api.frankfurter.app/latest?from=${s.cur}&to=${s.sec}`); return { rate: j.rates[s.sec], date: j.date, src: 'Banque centrale européenne' }; },
-    async () => { const j = await get(`https://open.er-api.com/v6/latest/${s.cur}`); return { rate: j.rates[s.sec], date: new Date(j.time_last_update_unix * 1000).toISOString().slice(0, 10), src: 'ExchangeRate-API' }; },
-  ];
-  for (const src of sources) {
+  {
     try {
-      const x = await src();
-      if (!(x.rate > 0)) continue;
+      const x = await fetchRate(s.cur, s.sec);
+      if (!x) return false;
       const target = S; // si l'utilisateur change de profil pendant la requête
       Object.assign(target.settings, { rate: Math.round(x.rate * 10000) / 10000, rateAt: Date.now(), rateDate: x.date || '', rateSrc: x.src });
       if (target === S) { save(); if (UI.view !== 'profiles' && !document.activeElement.matches('input,select')) render(); }
@@ -424,7 +428,76 @@ async function refreshRate(force) {
   }
   return false;
 }
-setInterval(() => { if (P.cur) refreshRate(false); }, 15 * 60e3); // vérifie souvent, ne télécharge que toutes les 6 h
+setInterval(() => { if (P.cur) refreshRate(false); }, 15 * 60e3);
+
+// Petite fenêtre de choix (remplace confirm() quand il y a plus de deux options)
+function ask(title, html, buttons) {
+  return new Promise(res => {
+    const m = $('#modal');
+    m.innerHTML = `<div class="modal"><div class="card" style="width:min(540px,100%)"><h2>${title}</h2>
+      <div style="font-size:14px;color:var(--ink2);margin-bottom:20px;line-height:1.55">${html}</div>
+      <div class="actions" style="justify-content:flex-end">${buttons.map((b, i) => `<button class="btn ${b.ghost ? 'ghost' : ''}" data-ask="${i}">${b.label}</button>`).join('')}</div></div></div>`;
+    m.onclick = ev => { const b = ev.target.closest('[data-ask]'); if (!b) return; m.onclick = null; m.innerHTML = ''; res(buttons[+b.dataset.ask].value); };
+  });
+}
+const fr = n => String(Math.round(n * 10000) / 10000).replace('.', ',');
+const hasMoney = () => S.entries.length || Object.keys(S.history).length || S.categories.some(c => c.budget) || S.settings.incomeTarget || S.settings.saveTarget;
+
+// Devise principale = devise dans laquelle tout est enregistré. La changer convertit tous les montants.
+async function changeMainCur(newCur) {
+  const s = S.settings, old = s.cur;
+  if (newCur === old) return false;
+  if (!hasMoney()) { s.cur = newCur; if (s.sec === newCur) s.sec = old; s.rateAt = 0; refreshRate(true); return true; }
+  let k;                                   // 1 ancienne devise = k nouvelle devise
+  const swap = newCur === s.sec;
+  if (swap) k = s.rate;
+  else { toast('Récupération du taux…'); const x = await fetchRate(old, newCur); k = x && x.rate; }
+  const choice = await ask(`Passer en ${newCur} ?`,
+    `La devise principale est celle dans laquelle tous tes montants sont enregistrés.<br><br>
+     <b>Convertir</b> : tous les montants passent en ${newCur}${k ? ` (1 ${old} = ${fr(k)} ${newCur})` : ''}.${swap ? ` Les montants que tu avais saisis en ${newCur} retrouvent leur valeur exacte, et ${old} devient ta 2ᵉ devise.` : ''}<br><br>
+     <b>Changer seulement le symbole</b> : les chiffres restent identiques. À utiliser si les montants étaient <i>déjà</i> en ${newCur} (par exemple pour corriger une mauvaise devise).`,
+    [{ label: 'Annuler', value: null, ghost: true }, { label: 'Changer seulement le symbole', value: 'label', ghost: true }, ...(k ? [{ label: 'Convertir', value: 'convert' }] : [])]);
+  if (!choice) return false;
+  if (choice === 'convert') {
+    const kk = Math.round(k * 10000) / 10000;
+    for (const e of S.entries) {
+      if (swap) { const was = e.amount; e.amount = e.origCur === 'sec' && e.origAmt ? e.origAmt : Math.round(was * kk * 10000) / 10000; e.origAmt = was; e.origCur = 'sec'; }
+      else e.amount = Math.round(e.amount * kk * 10000) / 10000;
+    }
+    for (const key in S.history) S.history[key] = Math.round(S.history[key] * kk * 100) / 100;
+    const flip = (v, cur) => swap ? [v, cur === 'sec' ? 'cur' : 'sec'] : [cur === 'sec' ? v : Math.round((v || 0) * kk * 100) / 100, cur];
+    for (const c of S.categories) [c.budget, c.budgetCur] = flip(c.budget, c.budgetCur || 'cur');
+    [s.incomeTarget, s.incomeTargetCur] = flip(s.incomeTarget, s.incomeTargetCur || 'cur');
+    [s.saveTarget, s.saveTargetCur] = flip(s.saveTarget, s.saveTargetCur || 'cur');
+    if (swap) { s.sec = old; s.rate = Math.round(1 / kk * 10000) / 10000; }
+    else if (s.sec !== newCur) s.rate = Math.round(s.rate / kk * 10000) / 10000;
+    s.cur = newCur;
+  } else {
+    if (swap) s.sec = old;
+    s.cur = newCur;
+  }
+  s.rateAt = 0; refreshRate(true);
+  toast(choice === 'convert' ? `Montants convertis en ${newCur}` : `Devise principale : ${newCur}`);
+  return true;
+}
+// 2ᵉ devise : les montants saisis dans l'ancienne 2ᵉ devise gardent leur valeur en devise principale
+async function changeSecCur(newSec) {
+  const s = S.settings, old = s.sec;
+  if (newSec === old) return false;
+  if (newSec === s.cur) return changeMainCur(old);
+  const n = S.entries.filter(e => e.origCur === 'sec').length;
+  if (n || S.categories.some(c => c.budgetCur === 'sec' && c.budget)) {
+    const ok = await ask(`Afficher en ${newSec} plutôt qu'en ${old} ?`,
+      `${n ? `${n} opération${n > 1 ? 's' : ''} saisie${n > 1 ? 's' : ''} en ${old} garderont leur valeur en ${s.cur}. ` : ''}Les budgets fixés en ${old} seront convertis en ${s.cur}.`,
+      [{ label: 'Annuler', value: false, ghost: true }, { label: 'Continuer', value: true }]);
+    if (!ok) return false;
+  }
+  for (const e of S.entries) if (e.origCur === 'sec') { e.origCur = null; e.origAmt = null; }
+  for (const c of S.categories) if (c.budgetCur === 'sec') { c.budget = Math.round(inBase(c.budget, 'sec') * 100) / 100; c.budgetCur = 'cur'; }
+  for (const t of ['income', 'save']) if (s[t + 'TargetCur'] === 'sec') { s[t + 'Target'] = Math.round(inBase(s[t + 'Target'], 'sec') * 100) / 100; s[t + 'TargetCur'] = 'cur'; }
+  s.sec = newSec; s.rateAt = 0; refreshRate(true);
+  return true;
+} // vérifie souvent, ne télécharge que toutes les 6 h
 
 /* ---------- Profils ---------- */
 const PCOL = ['#111111', '#0A8A4E', '#4C7DF0', '#E0457B', '#E8930C', '#8B5CF6', '#0EA5E9', '#B45309'];
@@ -1090,7 +1163,8 @@ document.addEventListener('change', ev => {
     else c[key] = key === 'name' ? (el.value.trim() || c.name) : el.value;
   } else if (scope === 'set') {
     const s = S.settings;
-    if (key === 'cur' || key === 'sec' || key.endsWith('Cur')) { s[key] = el.value; if (key === 'cur' || key === 'sec') { s.rateAt = 0; refreshRate(true); } }
+    if (key === 'cur' || key === 'sec') { (key === 'cur' ? changeMainCur : changeSecCur)(el.value).then(ok => { if (ok) save(); render(); }); return; }
+    if (key.endsWith('Cur')) s[key] = el.value;
     else if (key === 'showSec') s.showSec = el.value === '1';
     else if (key === 'rateAuto') { s.rateAuto = el.value === '1'; if (s.rateAuto) refreshRate(true); }
     else { const n = parseAmt(el.value); if (!isNaN(n)) s[key] = n; }
