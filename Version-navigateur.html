@@ -157,10 +157,41 @@ tfoot td{font-weight:650;border-top:2px solid var(--line)}
 .upd .notes{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--ink2);margin:-4px 0 14px;max-height:110px;overflow:auto;white-space:pre-line}
 .upd .track{height:10px}.upd .fill{background:var(--green);transition:width .2s}
 .upd .pct{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:7px}
+.app.pick{grid-template-columns:1fr}.app.pick .side{display:none}
+.pick-wrap{max-width:960px;margin:0 auto;padding:40px 10px 60px;text-align:center}
+.pick-wrap .brand-big{width:58px;height:58px;border-radius:17px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:27px;font-weight:700;margin:0 auto 22px}
+.pick-wrap h1{font-size:32px;letter-spacing:-.025em;margin:0 0 6px}
+.pick-wrap>p{color:var(--muted);margin:0 0 36px}
+.pfs{display:flex;flex-wrap:wrap;gap:18px;justify-content:center}
+.pf{position:relative;width:196px;min-height:206px;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:26px 16px 18px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform .12s, box-shadow .12s}
+.pf:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.pf.static{cursor:default}.pf.static:hover{transform:none}
+.pf-av{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:28px;font-weight:650;margin-bottom:8px}
+.pf b{font-size:16px;font-weight:620;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf .sec{font-size:12.5px}
+.pf-more{all:unset;position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:99px;display:grid;place-items:center;color:var(--muted);font-size:18px;line-height:1;cursor:pointer}
+.pf-more:hover{background:var(--soft);color:var(--ink)}
+.pf-menu{position:absolute;top:42px;right:10px;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:6px;min-width:150px;text-align:left}
+.pf-menu button{all:unset;display:block;width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;font-size:14px;cursor:pointer}
+.pf-menu button:hover{background:var(--soft)}.pf-menu .danger{color:var(--red)}
+.pf-new{border-style:dashed;background:transparent;box-shadow:none;justify-content:center;color:var(--muted)}
+.pf-new .plus{width:72px;height:72px;border-radius:50%;border:1.5px dashed var(--line);display:grid;place-items:center;font-size:30px;margin-bottom:8px}
+.pf .inp{text-align:center;padding:8px 10px}
+.pf-cols{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:4px 0 6px}
+.pf-cols button{all:unset;width:20px;height:20px;border-radius:50%;cursor:pointer;outline-offset:2px}
+.pf-cols button.on{outline:2px solid var(--ink)}
+.pf .row{display:flex;gap:6px;margin-top:4px}
+.who{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;margin:-12px 0 18px;border:1px solid var(--line);background:var(--card)}
+.who:hover{background:var(--soft)}
+.who i{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-style:normal;font-weight:650;font-size:13px;flex:none}
+.who span{flex:1;min-width:0;font-weight:560;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who small{color:var(--muted);font-size:12px}
+.cursel{padding:10px 6px}
+.kv.kv3{grid-template-columns:1fr 120px 82px}
 .banner{display:flex;align-items:center;gap:14px;justify-content:space-between;background:var(--green-soft);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-size:14px}
 
 /* Settings */
-.set-row{display:grid;grid-template-columns:28px 1.5fr 1fr 110px 34px;gap:10px;align-items:center;padding:6px 0}
+.set-row{display:grid;grid-template-columns:24px minmax(120px,1fr) 128px 84px 72px 30px;gap:8px;align-items:center;padding:6px 0}
 .set-row input[type=color]{width:28px;height:28px;border:0;padding:0;background:none;border-radius:50%;cursor:pointer}
 .kv{display:grid;grid-template-columns:1fr 180px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
 .kv:first-of-type{border-top:0}
@@ -174,6 +205,7 @@ tfoot td{font-weight:650;border-top:2px solid var(--line)}
 <div class="app">
   <aside class="side">
     <div class="brand"><i id="brand-i">€</i>Mes Finances</div>
+    <button class="who" data-act="pf-switch" id="who" title="Changer de profil"></button>
     <button class="nav" data-act="view" data-v="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Aperçu</button>
     <button class="nav" data-act="view" data-v="month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Mois</button>
     <button class="nav" data-act="view" data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="12" r="2"/><circle cx="15" cy="18" r="2"/></svg>Budget & réglages</button>
@@ -234,6 +266,10 @@ function moneyShort(n) {
   return new Intl.NumberFormat(code === 'EUR' ? 'fr-FR' : 'fr-CA', { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(n);
 }
 const sec = n => !S.settings.showSec ? '' : dispSec() ? money(n, S.settings.cur) : money(n * S.settings.rate, S.settings.sec);
+// Budgets et objectifs peuvent être saisis dans l'une ou l'autre devise
+const inBase = (v, cur) => cur === 'sec' ? (v || 0) * S.settings.rateIn : (v || 0);
+const budgetOf = c => inBase(c.budget, c.budgetCur);
+const moneyIn = (v, cur) => ((cur === 'sec') === dispSec()) ? money(v || 0, dcode()) : money(inBase(v, cur));
 const cls = n => n > 0.004 ? 'pos' : n < -0.004 ? 'neg' : '';
 
 /* ---------- Données ---------- */
@@ -254,22 +290,34 @@ function defaults() {
     history: {},
   };
 }
+// Stockage : un index des profils + un fichier par profil (« p-<id> »)
 const store = {
-  async load() {
-    if (window.native) return await window.native.load();
-    try { return JSON.parse(localStorage.getItem('mesfinances') || 'null'); } catch { return null; }
+  async get(name) {
+    let s = null;
+    if (window.native) s = await window.native.get(name);
+    else try { s = localStorage.getItem(name === 'legacy' ? 'mesfinances' : 'mesfinances.' + name); } catch {}
+    try { return s ? JSON.parse(s) : null; } catch { return null; }
   },
-  async save(d) {
-    const s = JSON.stringify(d, null, 1);
-    if (window.native) return window.native.save(s);
-    try { localStorage.setItem('mesfinances', s); } catch {}
+  async set(name, obj) {
+    const s = JSON.stringify(obj, null, 1);
+    if (window.native) return window.native.set(name, s);
+    try { localStorage.setItem('mesfinances.' + name, s); } catch {}
+  },
+  async del(name) {
+    if (window.native) return window.native.del(name);
+    try { localStorage.removeItem('mesfinances.' + name); } catch {}
   },
 };
+const P = { list: [], cur: null };
+const curProfile = () => P.list.find(x => x.id === P.cur);
+const saveProfiles = () => store.set('profils', { version: 1, profiles: P.list });
 let saveT;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => store.save(S), 250); }
+function save() { if (!P.cur) return; clearTimeout(saveT); const id = P.cur, data = S; saveT = setTimeout(() => { saveT = null; store.set('p-' + id, data); }, 250); }
+async function flushSave() { if (saveT && P.cur) { clearTimeout(saveT); saveT = null; await store.set('p-' + P.cur, S); } }
+const normalize = d => ({ ...defaults(), ...d, settings: { ...defaults().settings, ...(d && d.settings) } });
 
 /* ---------- État de l'interface ---------- */
-let S;
+let S = defaults();
 const UI = { inCad: null, view: 'overview', year: new Date().getFullYear(), month: nowK(), cat: 'bouffe', editing: null, lastDate: {}, hover: null };
 
 /* ---------- Calculs ---------- */
@@ -309,6 +357,11 @@ function renderDisp() {
   $('#brand-i').textContent = curSym(dcode()).replace(' CA', '').replace(' US', '');
 }
 function render() {
+  const picking = UI.view === 'profiles';
+  document.querySelector('.app').classList.toggle('pick', picking);
+  if (picking) { $('#main').innerHTML = viewProfiles(); const i = $('#pf-name'); if (i) i.focus(); return; }
+  const pr = curProfile();
+  if (pr) $('#who').innerHTML = `<i style="background:${pr.color}">${esc(initial(pr.name))}</i><span>${esc(pr.name)}</span><small>Changer</small>`;
   renderDisp();
   document.querySelectorAll('.nav').forEach(b => b.classList.toggle('on', b.dataset.v === UI.view));
   const m = $('#main');
@@ -320,6 +373,83 @@ function render() {
 }
 
 function banner() { return ''; }
+
+/* ---------- Profils ---------- */
+const PCOL = ['#111111', '#0A8A4E', '#4C7DF0', '#E0457B', '#E8930C', '#8B5CF6', '#0EA5E9', '#B45309'];
+const initial = n => (String(n).trim()[0] || '?').toUpperCase();
+const ago = t => {
+  if (!t) return 'Jamais ouvert';
+  const d = new Date(t), now = new Date(), days = Math.round((new Date(now.toDateString()) - new Date(d.toDateString())) / 864e5);
+  return days === 0 ? "Ouvert aujourd'hui" : days === 1 ? 'Ouvert hier' : `Ouvert le ${d.getDate()} ${MS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''}`;
+};
+function viewProfiles() {
+  const list = [...P.list].sort((a, b) => (b.lastOpened || b.created || 0) - (a.lastOpened || a.created || 0));
+  const colors = sel => `<div class="pf-cols">${PCOL.map(c => `<button type="button" class="${c === sel ? 'on' : ''}" style="background:${c}" data-act="pf-color" data-c="${c}"></button>`).join('')}</div>`;
+  const cards = list.map(p => {
+    if (UI.pfRename === p.id) return `<div class="pf static"><div class="pf-av" style="background:${UI.pfColor || p.color}">${esc(initial(p.name))}</div>
+      <input class="inp" id="pf-name" value="${esc(UI.pfDraft ?? p.name)}" maxlength="40">${colors(UI.pfColor || p.color)}
+      <div class="row"><button class="btn sm ghost" data-act="pf-cancel">Annuler</button><button class="btn sm" data-act="pf-save" data-id="${p.id}">OK</button></div></div>`;
+    return `<div class="pf" data-act="pf-open" data-id="${p.id}">
+      <button class="pf-more" data-act="pf-menu" data-id="${p.id}" title="Options">⋯</button>
+      ${UI.pfMenu === p.id ? `<div class="pf-menu"><button data-act="pf-rename" data-id="${p.id}">Renommer</button><button class="danger" data-act="pf-del" data-id="${p.id}">Supprimer le profil</button></div>` : ''}
+      <div class="pf-av" style="background:${p.color}">${esc(initial(p.name))}</div><b>${esc(p.name)}</b><span class="sec">${ago(p.lastOpened)}</span></div>`;
+  }).join('');
+  const add = UI.pfNew
+    ? `<div class="pf static"><div class="pf-av" style="background:${UI.pfColor}">${esc(initial(UI.pfDraft || '?'))}</div>
+      <input class="inp" id="pf-name" placeholder="Prénom" maxlength="40" value="${esc(UI.pfDraft || '')}">${colors(UI.pfColor)}
+      <div class="row">${P.list.length ? '<button class="btn sm ghost" data-act="pf-cancel">Annuler</button>' : ''}<button class="btn sm" data-act="pf-create">Créer</button></div></div>`
+    : `<div class="pf pf-new" data-act="pf-new"><div class="plus">+</div><b>Nouveau profil</b><span class="sec">Comptes séparés</span></div>`;
+  return `<div class="pick-wrap"><div class="brand-big">€</div>
+    <h1>${P.list.length ? 'Qui utilise Mes Finances ?' : 'Bienvenue dans Mes Finances'}</h1>
+    <p>${P.list.length ? 'Choisis ton profil. Chaque profil a ses propres comptes, catégories et budgets.' : 'Crée ton profil pour commencer. Tu pourras en ajouter d\'autres pour chaque personne qui utilise cet ordinateur.'}</p>
+    <div class="pfs">${cards}${add}</div></div>`;
+}
+async function openProfile(id) {
+  await flushSave();
+  const p = P.list.find(x => x.id === id); if (!p) return;
+  S = normalize(await store.get('p-' + id));
+  P.cur = id; p.lastOpened = Date.now(); saveProfiles();
+  Object.assign(UI, { view: 'overview', year: new Date().getFullYear(), month: nowK(), editing: null, inCad: null, lastDate: {}, pfMenu: null, pfRename: null, pfNew: false });
+  if (!catById(UI.cat)) UI.cat = (S.categories.find(c => c.type === 'expense') || S.categories[0] || {}).id;
+  render();
+}
+async function profileAction(a, el) {
+  const id = el.dataset.id;
+  switch (a) {
+    case 'pf-open': return openProfile(id);
+    case 'pf-menu': UI.pfMenu = UI.pfMenu === id ? null : id; break;
+    case 'pf-new': Object.assign(UI, { pfNew: true, pfRename: null, pfMenu: null, pfDraft: '', pfColor: PCOL[P.list.length % PCOL.length] }); break;
+    case 'pf-color': UI.pfDraft = $('#pf-name') ? $('#pf-name').value : UI.pfDraft; UI.pfColor = el.dataset.c; break;
+    case 'pf-cancel': Object.assign(UI, { pfNew: false, pfRename: null, pfColor: null }); break;
+    case 'pf-create': {
+      const name = ($('#pf-name').value || '').trim();
+      if (!name) { $('#pf-name').focus(); toast('Donne un nom au profil'); return; }
+      if (P.list.some(x => norm(x.name) === norm(name))) { toast('Ce nom existe déjà'); return; }
+      const nid = uid().replace(/[^a-z0-9]/gi, '');
+      P.list.push({ id: nid, name, color: UI.pfColor, created: Date.now() });
+      await store.set('p-' + nid, defaults()); await saveProfiles();
+      UI.pfNew = false; return openProfile(nid);
+    }
+    case 'pf-rename': Object.assign(UI, { pfRename: id, pfMenu: null, pfNew: false, pfColor: null, pfDraft: null }); break;
+    case 'pf-save': {
+      const p = P.list.find(x => x.id === id), name = ($('#pf-name').value || '').trim();
+      if (!name) return;
+      if (P.list.some(x => x.id !== id && norm(x.name) === norm(name))) { toast('Ce nom existe déjà'); return; }
+      p.name = name; if (UI.pfColor) p.color = UI.pfColor; await saveProfiles();
+      Object.assign(UI, { pfRename: null, pfColor: null }); toast('Profil renommé'); break;
+    }
+    case 'pf-del': {
+      const p = P.list.find(x => x.id === id); UI.pfMenu = null;
+      if (!confirm(`Supprimer le profil « ${p.name} » et toutes ses données (opérations, budgets, réglages) ?\n\nCette action ne peut pas être annulée depuis l'app.`)) break;
+      await store.del('p-' + id); P.list = P.list.filter(x => x.id !== id); await saveProfiles();
+      if (P.cur === id) P.cur = null;
+      if (!P.list.length) Object.assign(UI, { pfNew: true, pfDraft: '', pfColor: PCOL[0] });
+      toast('Profil supprimé'); break;
+    }
+    case 'pf-switch': await flushSave(); P.cur = null; Object.assign(UI, { view: 'profiles', pfMenu: null, pfNew: !P.list.length, pfRename: null }); break;
+  }
+  render();
+}
 
 function viewWelcome() {
   return `<div class="top"><h1>Bienvenue</h1></div>
@@ -363,11 +493,11 @@ function viewOverview() {
   const exps = S.categories.filter(c => c.type === 'expense').map(c => ({ c, v: r2(T.byCat[c.id] || 0) })).sort((a, b) => b.v - a.v);
   const nMonths = det.length || 1;
   const bars = exps.map(({ c, v }) => {
-    const pct = T.exp ? v / T.exp : 0, avg = v / nMonths, over = c.budget && avg > c.budget;
+    const pct = T.exp ? v / T.exp : 0, avg = v / nMonths, over = c.budget && avg > budgetOf(c);
     return `<div class="bar-row"><div class="hd"><span><i class="dot" style="background:${c.color}"></i>${esc(c.name)}</span>
       <span class="num"><b>${money(v)}</b> <span class="muted">· ${Math.round(pct * 100)} %</span></span></div>
       <div class="track"><div class="fill" style="width:${(pct * 100).toFixed(1)}%;background:${c.color}"></div></div>
-      <div class="meta"><span>Moy. ${money(avg)} / mois</span>${c.budget ? `<span class="${over ? 'neg' : 'pos'}">Budget ${money(c.budget)}</span>` : ''}</div></div>`;
+      <div class="meta"><span>Moy. ${money(avg)} / mois</span>${c.budget ? `<span class="${over ? 'neg' : 'pos'}">Budget ${moneyIn(c.budget, c.budgetCur)}</span>` : ''}</div></div>`;
   }).join('') || `<div class="empty">Aucune dépense ${period}</div>`;
 
   const rows = [...pts].reverse().map(p => {
@@ -431,16 +561,16 @@ function viewMonth() {
   }
 
   const budgetRows = S.categories.filter(c => c.type === 'expense').map(c => {
-    const v = st.byCat[c.id] || 0, b = c.budget || 0, pct = b ? v / b : 0, over = b && v > b;
+    const v = st.byCat[c.id] || 0, b = budgetOf(c), pct = b ? v / b : 0, over = b && v > b;
     return `<div class="bar-row"><div class="hd"><span><i class="dot" style="background:${c.color}"></i>${esc(c.name)}</span>
-      <span class="num"><b>${money(v)}</b>${b ? ` <span class="muted">/ ${money(b)}</span>` : ''}</span></div>
+      <span class="num"><b>${money(v)}</b>${b ? ` <span class="muted">/ ${moneyIn(c.budget, c.budgetCur)}</span>` : ''}</span></div>
       <div class="track"><div class="fill" style="width:${Math.min(100, pct * 100).toFixed(1)}%;background:${over ? 'var(--red)' : c.color}"></div></div>
       ${b ? `<div class="meta"><span class="${over ? 'neg' : ''}">${Math.round(pct * 100)} % du budget</span><span>${over ? 'Dépassé de ' + money(v - b) : 'Reste ' + money(b - v)}</span></div>` : ''}</div>`;
   }).join('');
-  const goal = (lbl, v, target, color) => {
-    if (!target) return '';
-    const pct = v / target;
-    return `<div class="bar-row"><div class="hd"><span>${lbl}</span><span class="num"><b>${money(v)}</b> <span class="muted">/ ${money(target)}</span></span></div>
+  const goal = (lbl, v, raw, cur, color) => {
+    if (!raw) return '';
+    const target = inBase(raw, cur), pct = v / target;
+    return `<div class="bar-row"><div class="hd"><span>${lbl}</span><span class="num"><b>${money(v)}</b> <span class="muted">/ ${moneyIn(raw, cur)}</span></span></div>
       <div class="track"><div class="fill" style="width:${Math.max(0, Math.min(100, pct * 100)).toFixed(1)}%;background:${color}"></div></div>
       <div class="meta"><span>${Math.round(pct * 100)} % de l'objectif</span></div></div>`;
   };
@@ -477,20 +607,22 @@ function viewMonth() {
     </div>
     <div class="card"><h2>Budget du mois</h2><div class="bars">${budgetRows}
       <div style="height:6px"></div>
-      ${goal('Revenus', st.inc, S.settings.incomeTarget, 'var(--green)')}
-      ${goal('Épargne nette', Math.max(0, st.net), S.settings.saveTarget, 'var(--ink)')}
+      ${goal('Revenus', st.inc, S.settings.incomeTarget, S.settings.incomeTargetCur, 'var(--green)')}
+      ${goal('Épargne nette', Math.max(0, st.net), S.settings.saveTarget, S.settings.saveTargetCur, 'var(--ink)')}
     </div></div>
   </div>`;
 }
 
 function viewSettings() {
   const s = S.settings;
+  const curSel = (f, v, attrs = '') => `<select class="inp cursel" data-f="${f}" ${attrs} title="Devise de ce montant">${[['cur', s.cur], ['sec', s.sec]].map(([k, c]) => `<option value="${k}" ${(v || 'cur') === k ? 'selected' : ''}>${curSym(c)}</option>`).join('')}</select>`;
   const types = { expense: 'Dépense', invest: 'Investissement', income: 'Revenu' };
   const cats = S.categories.map(c => `<div class="set-row">
       <input type="color" value="${c.color}" data-f="cat.color" data-id="${c.id}" title="Couleur">
       <input class="inp" value="${esc(c.name)}" data-f="cat.name" data-id="${c.id}">
       <select class="inp" data-f="cat.type" data-id="${c.id}">${Object.entries(types).map(([v, l]) => `<option value="${v}" ${c.type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <input class="inp num" style="text-align:right" value="${c.type === 'expense' ? String(c.budget || 0).replace('.', ',') : ''}" ${c.type === 'expense' ? '' : 'disabled placeholder="—"'} data-f="cat.budget" data-id="${c.id}">
+      ${c.type === 'expense' ? curSel('cat.budgetCur', c.budgetCur, `data-id="${c.id}"`) : '<span></span>'}
       <button class="iconbtn" data-act="delcat" data-id="${c.id}" title="Supprimer">✕</button></div>`).join('');
   const hist = Object.keys(S.history).sort().map(k => `<div class="hist-row">
       <input class="inp" type="month" value="${k}" data-f="hist.key" data-k="${k}">
@@ -500,14 +632,15 @@ function viewSettings() {
   return `<div class="top"><h1>Budget & réglages</h1></div>
   <div class="grid g2">
     <div class="card"><h2>Catégories & budget mensuel</h2>
-      <div class="set-row muted" style="font-size:12px;font-weight:600"><span></span><span>Nom</span><span>Type</span><span style="text-align:right">Budget / mois</span><span></span></div>
+      <div class="set-row muted" style="font-size:12px;font-weight:600"><span></span><span>Nom</span><span>Type</span><span style="text-align:right">Budget / mois</span><span>Devise</span><span></span></div>
       ${cats}
       <div class="mt"><button class="btn sm ghost" data-act="addcat">+ Ajouter une catégorie</button></div>
     </div>
     <div>
       <div class="card"><h2>Objectifs mensuels</h2>
-        <div class="kv"><span>Revenus visés</span><input class="inp num" style="text-align:right" value="${s.incomeTarget}" data-f="set.incomeTarget"></div>
-        <div class="kv"><span>Épargne nette visée</span><input class="inp num" style="text-align:right" value="${s.saveTarget}" data-f="set.saveTarget"></div>
+        <div class="kv kv3"><span>Revenus visés</span><input class="inp num" style="text-align:right" value="${String(s.incomeTarget).replace('.', ',')}" data-f="set.incomeTarget">${curSel('set.incomeTargetCur', s.incomeTargetCur)}</div>
+        <div class="kv kv3"><span>Épargne nette visée</span><input class="inp num" style="text-align:right" value="${String(s.saveTarget).replace('.', ',')}" data-f="set.saveTarget">${curSel('set.saveTargetCur', s.saveTargetCur)}</div>
+        <p class="sec" style="margin:8px 0 0">Les montants en ${esc(s.sec)} sont convertis avec le taux de saisie (1 ${esc(s.sec)} = ${String(s.rateIn).replace('.', ',')} ${esc(s.cur)}).</p>
       </div>
       <div class="card mt"><h2>Devises</h2>
         <div class="kv"><span>Devise principale</span><select class="inp" data-f="set.cur">${curOpt(s.cur)}</select></div>
@@ -595,8 +728,11 @@ function download(name, content, type) {
 }
 
 document.addEventListener('click', async ev => {
-  const el = ev.target.closest('[data-act]'); if (!el) return;
+  const el = ev.target.closest('[data-act]');
+  if (UI.pfMenu && (!el || !el.dataset.act.startsWith('pf-'))) { UI.pfMenu = null; render(); return; }
+  if (!el) return;
   const a = el.dataset.act;
+  if (a.startsWith('pf-')) return profileAction(a, el);
   if (a === 'del') { ev.stopPropagation(); S.entries = S.entries.filter(e => e.id !== el.dataset.id); if (UI.editing === el.dataset.id) UI.editing = null; save(); UI.noFocus = true; render(); toast('Ligne supprimée'); return; }
   switch (a) {
     case 'view': UI.view = el.dataset.v; UI.editing = null; break;
@@ -625,7 +761,7 @@ document.addEventListener('click', async ev => {
       if (S.categories.length <= 1) return; S.categories = S.categories.filter(c => c.id !== id); if (UI.cat === id) UI.cat = S.categories[0].id; save(); break; }
     case 'addhist': { let k = addM(Object.keys(S.history).sort()[0] || nowK(), -1); S.history[k] = 0; save(); break; }
     case 'delhist': delete S.history[el.dataset.k]; save(); break;
-    case 'export': download(`mes-finances-${todayISO()}.json`, JSON.stringify(S, null, 1), 'application/json'); return;
+    case 'export': download(`mes-finances-${norm(curProfile()?.name || 'profil').replace(/[^a-z0-9]+/g, '-')}-${todayISO()}.json`, JSON.stringify(S, null, 1), 'application/json'); return;
     case 'csv': {
       const rows = [['Date', 'Catégorie', 'Type', 'Montant', 'Note'], ...[...S.entries].sort((a, b) => a.date.localeCompare(b.date)).map(e => { const c = catById(e.cat) || {}; return [e.date, c.name, c.type, String(e.amount).replace('.', ','), e.note || '']; })];
       download(`operations-${todayISO()}.csv`, '﻿' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv'); return; }
@@ -848,9 +984,9 @@ function applyImport(mode) {
   }
   if (res.est) for (const [k, n] of Object.entries(res.est)) {
     const c = cats.find(x => norm(x.name) === k);
-    if (c && c.type === 'expense') c.budget = n;
-    else if (c && c.type === 'income') S.settings.incomeTarget = n;
-    else if (k === 'investissement possible' || k === 'epargne') S.settings.saveTarget = n;
+    if (c && c.type === 'expense') { c.budget = n; c.budgetCur = 'cur'; }
+    else if (c && c.type === 'income') { S.settings.incomeTarget = n; S.settings.incomeTargetCur = 'cur'; }
+    else if (k === 'investissement possible' || k === 'epargne') { S.settings.saveTarget = n; S.settings.saveTargetCur = 'cur'; }
   }
   // Un remboursement (crédit) dans une catégorie de dépense vient en déduction, et inversement
   const fresh = kept.map(e => {
@@ -888,7 +1024,7 @@ document.addEventListener('change', ev => {
     else c[key] = key === 'name' ? (el.value.trim() || c.name) : el.value;
   } else if (scope === 'set') {
     const s = S.settings;
-    if (key === 'cur' || key === 'sec') s[key] = el.value;
+    if (key === 'cur' || key === 'sec' || key.endsWith('Cur')) s[key] = el.value;
     else if (key === 'showSec') s.showSec = el.value === '1';
     else { const n = parseAmt(el.value); if (!isNaN(n)) s[key] = n; }
   } else if (scope === 'hist') {
@@ -922,6 +1058,11 @@ document.addEventListener('submit', ev => {
   save(); render();
 });
 document.addEventListener('keydown', ev => {
+  if (ev.target.id === 'pf-name') {
+    if (ev.key === 'Enter') { const b = document.querySelector('[data-act=pf-create],[data-act=pf-save]'); if (b) b.click(); }
+    if (ev.key === 'Escape' && P.list.length) { const b = document.querySelector('[data-act=pf-cancel]'); if (b) b.click(); }
+    return;
+  }
   if (UI.view !== 'month' || ev.target.matches('input,select')) return;
   if (ev.key === 'ArrowLeft') { UI.month = addM(UI.month, -1); render(); }
   if (ev.key === 'ArrowRight') { UI.month = addM(UI.month, 1); render(); }
@@ -974,9 +1115,19 @@ if (window.native && window.native.onUpdate) window.native.onUpdate(updUI);
 
 /* ---------- Démarrage ---------- */
 (async () => {
-  const d = await store.load();
-  S = d ? { ...defaults(), ...d, settings: { ...defaults().settings, ...d.settings } } : defaults();
-  if (!d) save();
+  const idx = await store.get('profils');
+  if (idx && Array.isArray(idx.profiles)) P.list = idx.profiles;
+  else {
+    // Première version avec profils : les données existantes deviennent « Mon profil »
+    const legacy = await store.get('legacy');
+    if (legacy && Array.isArray(legacy.entries)) {
+      const id = uid().replace(/[^a-z0-9]/gi, '');
+      P.list = [{ id, name: 'Mon profil', color: PCOL[0], created: Date.now() }];
+      await store.set('p-' + id, legacy);
+    }
+    await saveProfiles();
+  }
+  Object.assign(UI, { view: 'profiles', pfNew: !P.list.length, pfDraft: '', pfColor: PCOL[0] });
   $('#foot').textContent = window.native ? `Version ${await window.native.version()}` : 'Version navigateur';
   render();
 })();

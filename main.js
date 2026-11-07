@@ -38,28 +38,44 @@ function setupUpdates(win) {
 ipcMain.handle('update:download', () => { downloading = true; autoUpdater.downloadUpdate().catch(() => {}); });
 ipcMain.handle('update:install', () => setImmediate(() => autoUpdater.quitAndInstall(false, true)));
 
-ipcMain.handle('load', () => {
-  try { return JSON.parse(fs.readFileSync(dataFile(), 'utf8')); } catch { return null; }
-});
-
-ipcMain.handle('save', (_e, json) => {
-  const f = dataFile();
-  fs.mkdirSync(path.dirname(f), { recursive: true });
-  // Une copie de sécurité par jour (on garde les 30 dernières)
+// Stockage : profils/<nom>.json (index « profils » + un fichier « p-<id> » par profil).
+// « legacy » = l'ancien finances.json d'avant les profils (lu une fois pour la migration, jamais supprimé).
+const profDir = () => path.join(app.getPath('userData'), 'profils');
+function fileFor(name) {
+  if (name === 'legacy') return dataFile();
+  if (!/^[a-z0-9_-]{1,64}$/i.test(String(name))) throw new Error('nom invalide');
+  return path.join(profDir(), name + '.json');
+}
+function backup(name, f) {
+  // Une copie de sécurité par fichier et par jour ; on garde les 200 plus récentes
   try {
-    if (fs.existsSync(f)) {
-      fs.mkdirSync(backupDir(), { recursive: true });
-      const b = path.join(backupDir(), `finances-${new Date().toISOString().slice(0, 10)}.json`);
-      if (!fs.existsSync(b)) {
-        fs.copyFileSync(f, b);
-        const all = fs.readdirSync(backupDir()).filter(n => n.endsWith('.json')).sort();
-        all.slice(0, Math.max(0, all.length - 30)).forEach(n => fs.unlinkSync(path.join(backupDir(), n)));
-      }
-    }
+    if (!fs.existsSync(f)) return;
+    fs.mkdirSync(backupDir(), { recursive: true });
+    const b = path.join(backupDir(), `${name}-${new Date().toISOString().slice(0, 10)}.json`);
+    if (fs.existsSync(b)) return;
+    fs.copyFileSync(f, b);
+    const all = fs.readdirSync(backupDir()).filter(n => n.endsWith('.json'))
+      .map(n => ({ n, t: fs.statSync(path.join(backupDir(), n)).mtimeMs })).sort((a, b) => a.t - b.t);
+    all.slice(0, Math.max(0, all.length - 200)).forEach(x => fs.unlinkSync(path.join(backupDir(), x.n)));
   } catch {}
+}
+ipcMain.handle('store:get', (_e, name) => { try { return fs.readFileSync(fileFor(name), 'utf8'); } catch { return null; } });
+ipcMain.handle('store:set', (_e, name, json) => {
+  const f = fileFor(name);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  backup(name, f);
   const tmp = f + '.tmp';
   fs.writeFileSync(tmp, json, 'utf8');
   fs.renameSync(tmp, f);
+  return true;
+});
+ipcMain.handle('store:del', (_e, name) => {
+  // Le profil supprimé est déplacé dans « sauvegardes » (récupérable à la main), pas effacé
+  const f = fileFor(name);
+  try {
+    fs.mkdirSync(backupDir(), { recursive: true });
+    fs.renameSync(f, path.join(backupDir(), `supprime-${name}-${new Date().toISOString().slice(0, 10)}-${Date.now()}.json`));
+  } catch {}
   return true;
 });
 
@@ -79,7 +95,7 @@ ipcMain.handle('import', async e => {
 });
 
 ipcMain.handle('version', () => app.getVersion());
-ipcMain.handle('reveal', () => shell.showItemInFolder(dataFile()));
+ipcMain.handle('reveal', () => { fs.mkdirSync(profDir(), { recursive: true }); shell.openPath(profDir()); });
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());

@@ -4,13 +4,14 @@ Petite application Windows pour suivre ses dépenses mois par mois, avec un rés
 
 **Télécharger :** onglet [Releases](../../releases/latest) → `MesFinances-Installation.exe`.
 
-- Saisie rapide des dépenses par catégorie, budgets mensuels, objectifs
+- Plusieurs profils sur le même ordinateur, chacun avec ses comptes
+- Saisie rapide des dépenses par catégorie, budgets mensuels (en € ou $ CA), objectifs
 - Aperçu annuel : épargne cumulée, répartition des dépenses, tableau mois par mois
 - Affichage en € ou en $ CA
 - Import d'un fichier Excel / CSV (budget maison ou export bancaire)
 - Mises à jour automatiques
 
-Les données restent sur l'ordinateur de chacun (`%APPDATA%\Mes Finances`), elles ne sont jamais envoyées sur GitHub.
+Les données restent sur l'ordinateur de chacun (`%APPDATA%\Mes Finances\profils`), elles ne sont jamais envoyées sur GitHub.
 
 ## Publier une nouvelle version
 1. Modifier le code, augmenter `"version"` dans `package.json` (ex. 1.1.1 → 1.2.0) et écrire les nouveautés dans `NOUVEAUTES.md`.

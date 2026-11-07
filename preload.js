@@ -1,7 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('native', {
-  load: () => ipcRenderer.invoke('load'),
-  save: json => ipcRenderer.invoke('save', json),
+  get: name => ipcRenderer.invoke('store:get', name),
+  set: (name, json) => ipcRenderer.invoke('store:set', name, json),
+  del: name => ipcRenderer.invoke('store:del', name),
   exportFile: (name, content) => ipcRenderer.invoke('export', { name, content }),
   importFile: () => ipcRenderer.invoke('import'),
   reveal: () => ipcRenderer.invoke('reveal'),

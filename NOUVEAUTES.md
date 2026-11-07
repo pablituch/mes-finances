@@ -1,3 +1,4 @@
-- La mise à jour demande maintenant avant de se télécharger
-- Barre de progression pendant le téléchargement
-- Bouton « Redémarrer et installer » une fois prête
+- Profils : plusieurs personnes peuvent utiliser l'app sur le même ordinateur, chacune avec ses propres comptes
+- Page d'accueil pour choisir son profil, bouton « ⋯ » pour renommer ou supprimer un profil
+- Budgets et objectifs : choix de la devise (€ ou $ CA) pour chaque montant
+- Tes données actuelles sont reprises automatiquement dans « Mon profil » (renommable)
