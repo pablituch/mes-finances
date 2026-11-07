@@ -1,4 +1,4 @@
-- Profils : plusieurs personnes peuvent utiliser l'app sur le même ordinateur, chacune avec ses propres comptes
-- Page d'accueil pour choisir son profil, bouton « ⋯ » pour renommer ou supprimer un profil
-- Budgets et objectifs : choix de la devise (€ ou $ CA) pour chaque montant
-- Tes données actuelles sont reprises automatiquement dans « Mon profil » (renommable)
+- Taux de change automatique (Banque centrale européenne), vérifié toutes les 6 h, avec bouton « Actualiser »
+- Un seul taux pour tout : fin de l'écart entre la saisie (×0,62) et l'affichage (×1,62)
+- Les montants saisis en $ CA restent exacts : 1 787 $ s'affiche toujours 1 787 $
+- Tes anciennes opérations converties retrouvent automatiquement leur montant d'origine en $

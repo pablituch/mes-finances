@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://api.frankfurter.dev https://api.frankfurter.app https://open.er-api.com">
 <title>Mes Finances</title>
 <style>
 :root{
@@ -267,7 +267,10 @@ function moneyShort(n) {
 }
 const sec = n => !S.settings.showSec ? '' : dispSec() ? money(n, S.settings.cur) : money(n * S.settings.rate, S.settings.sec);
 // Budgets et objectifs peuvent être saisis dans l'une ou l'autre devise
-const inBase = (v, cur) => cur === 'sec' ? (v || 0) * S.settings.rateIn : (v || 0);
+const inBase = (v, cur) => cur === 'sec' ? (v || 0) / S.settings.rate : (v || 0);
+// Montant « de base » d'une opération. Saisie en 2ᵉ devise : quand on affiche dans cette devise,
+// on repart du montant d'origine pour l'afficher exactement (1 787 $ reste 1 787 $, quel que soit le taux du jour).
+const amtBase = e => (e.origCur === 'sec' && dispSec() && e.origAmt) ? e.origAmt / S.settings.rate : e.amount;
 const budgetOf = c => inBase(c.budget, c.budgetCur);
 const moneyIn = (v, cur) => ((cur === 'sec') === dispSec()) ? money(v || 0, dcode()) : money(inBase(v, cur));
 const cls = n => n > 0.004 ? 'pos' : n < -0.004 ? 'neg' : '';
@@ -276,7 +279,7 @@ const cls = n => n > 0.004 ? 'pos' : n < -0.004 ? 'neg' : '';
 function defaults() {
   return {
     version: 1,
-    settings: { cur: 'EUR', sec: 'CAD', rate: 1.62, rateIn: 0.62, showSec: true, incomeTarget: 0, saveTarget: 0 },
+    settings: { cur: 'EUR', sec: 'CAD', rate: 1.62, rateAuto: true, rateAt: 0, rateDate: '', rateSrc: '', showSec: true, incomeTarget: 0, saveTarget: 0 },
     categories: [
       { id: 'transport', name: 'Transport',      type: 'expense', color: '#4C7DF0', budget: 0 },
       { id: 'admin',     name: 'Administration', type: 'expense', color: '#8B5CF6', budget: 0 },
@@ -314,6 +317,20 @@ const saveProfiles = () => store.set('profils', { version: 1, profiles: P.list }
 let saveT;
 function save() { if (!P.cur) return; clearTimeout(saveT); const id = P.cur, data = S; saveT = setTimeout(() => { saveT = null; store.set('p-' + id, data); }, 250); }
 async function flushSave() { if (saveT && P.cur) { clearTimeout(saveT); saveT = null; await store.set('p-' + P.cur, S); } }
+function migrateOrig(d) {
+  let changed = false;
+  const rateIn = (d.settings && d.settings.rateIn) || 0.62;
+  for (const e of d.entries || []) {
+    if (e.origCur !== undefined) continue;
+    e.origCur = null; e.origAmt = null; changed = true;
+    const n = String(e.note || '').trim();
+    let m = /^(.+?) \$ CA$/.exec(n), x = NaN, k = rateIn;
+    if (m) x = parseAmt(m[1]);
+    else if ((m = /^\(?(.+?)\)? × (0,\d+)$/.exec(n))) { x = parseAmt(m[1].replace(/×/g, '*').replace(/÷/g, '/')); k = parseAmt(m[2]); }
+    if (x > 0 && Math.abs(x * k - e.amount) < 0.02) { e.origCur = 'sec'; e.origAmt = Math.round(x * 100) / 100; }
+  }
+  return changed;
+}
 const normalize = d => ({ ...defaults(), ...d, settings: { ...defaults().settings, ...(d && d.settings) } });
 
 /* ---------- État de l'interface ---------- */
@@ -327,8 +344,9 @@ function monthStats(k) {
   const byCat = {}; let inc = 0, exp = 0, inv = 0;
   for (const e of es) {
     const c = catById(e.cat); if (!c) continue;
-    byCat[c.id] = (byCat[c.id] || 0) + e.amount;
-    if (c.type === 'income') inc += e.amount; else if (c.type === 'invest') inv += e.amount; else exp += e.amount;
+    const a = amtBase(e);
+    byCat[c.id] = (byCat[c.id] || 0) + a;
+    if (c.type === 'income') inc += a; else if (c.type === 'invest') inv += a; else exp += a;
   }
   return { k, es, byCat, inc, exp, inv, net: inc - exp, dispo: inc - exp - inv, has: es.length > 0 };
 }
@@ -374,6 +392,40 @@ function render() {
 
 function banner() { return ''; }
 
+/* ---------- Taux de change automatique ----------
+   Google ne propose pas d'accès libre à ses taux : on utilise les taux de référence de la Banque centrale
+   européenne (frankfurter), avec un second service en secours. Vérification toutes les 6 h. */
+const RATE_EVERY = 6 * 3600e3;
+function rateInfo() {
+  const s = S.settings;
+  if (!s.rateAt) return 'Pas encore récupéré';
+  const h = Math.floor((Date.now() - s.rateAt) / 3600e3), m = Math.floor((Date.now() - s.rateAt) / 60e3);
+  return `Vérifié ${m < 1 ? "à l'instant" : h < 1 ? `il y a ${m} min` : `il y a ${h} h`}${s.rateDate ? ` · taux du ${s.rateDate.split('-').reverse().join('/')}` : ''} · ${s.rateSrc}`;
+}
+async function refreshRate(force) {
+  const s = S.settings;
+  if (!s.rateAuto || s.cur === s.sec) return false;
+  if (!force && s.rateAt && Date.now() - s.rateAt < RATE_EVERY) return false;
+  const get = async url => { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw 0; return r.json(); };
+  const sources = [
+    async () => { const j = await get(`https://api.frankfurter.dev/v1/latest?base=${s.cur}&symbols=${s.sec}`); return { rate: j.rates[s.sec], date: j.date, src: 'Banque centrale européenne' }; },
+    async () => { const j = await get(`https://api.frankfurter.app/latest?from=${s.cur}&to=${s.sec}`); return { rate: j.rates[s.sec], date: j.date, src: 'Banque centrale européenne' }; },
+    async () => { const j = await get(`https://open.er-api.com/v6/latest/${s.cur}`); return { rate: j.rates[s.sec], date: new Date(j.time_last_update_unix * 1000).toISOString().slice(0, 10), src: 'ExchangeRate-API' }; },
+  ];
+  for (const src of sources) {
+    try {
+      const x = await src();
+      if (!(x.rate > 0)) continue;
+      const target = S; // si l'utilisateur change de profil pendant la requête
+      Object.assign(target.settings, { rate: Math.round(x.rate * 10000) / 10000, rateAt: Date.now(), rateDate: x.date || '', rateSrc: x.src });
+      if (target === S) { save(); if (UI.view !== 'profiles' && !document.activeElement.matches('input,select')) render(); }
+      return true;
+    } catch {}
+  }
+  return false;
+}
+setInterval(() => { if (P.cur) refreshRate(false); }, 15 * 60e3); // vérifie souvent, ne télécharge que toutes les 6 h
+
 /* ---------- Profils ---------- */
 const PCOL = ['#111111', '#0A8A4E', '#4C7DF0', '#E0457B', '#E8930C', '#8B5CF6', '#0EA5E9', '#B45309'];
 const initial = n => (String(n).trim()[0] || '?').toUpperCase();
@@ -411,7 +463,9 @@ async function openProfile(id) {
   P.cur = id; p.lastOpened = Date.now(); saveProfiles();
   Object.assign(UI, { view: 'overview', year: new Date().getFullYear(), month: nowK(), editing: null, inCad: null, lastDate: {}, pfMenu: null, pfRename: null, pfNew: false });
   if (!catById(UI.cat)) UI.cat = (S.categories.find(c => c.type === 'expense') || S.categories[0] || {}).id;
+  if (migrateOrig(S)) save();
   render();
+  refreshRate(false);
 }
 async function profileAction(a, el) {
   const id = el.dataset.id;
@@ -555,8 +609,8 @@ function viewMonth() {
     const inc = c.type === 'income';
     txs += `<div class="tx ${UI.editing === e.id ? 'edit' : ''}" data-act="edit" data-id="${e.id}">
       <div class="ic" style="background:${c.color}">${esc(c.name[0])}</div>
-      <div class="t"><b>${esc(c.name)}</b><span>${esc(e.note) || (c.type === 'invest' ? 'Investissement' : inc ? 'Rentrée d\'argent' : 'Dépense')}</span></div>
-      <div class="amt ${(inc ? e.amount : -e.amount) > 0 ? 'pos' : ''}">${money(inc ? e.amount : -e.amount, null, true).replace('-', '−')}</div>
+      <div class="t"><b>${esc(c.name)}</b><span>${esc(e.note) || (e.origCur === 'sec' && !dispSec() ? money(e.origAmt, S.settings.sec) : '') || (c.type === 'invest' ? 'Investissement' : inc ? 'Rentrée d\'argent' : 'Dépense')}</span></div>
+      <div class="amt ${(inc ? e.amount : -e.amount) > 0 ? 'pos' : ''}">${money(inc ? amtBase(e) : -amtBase(e), null, true).replace('-', '−')}</div>
       <button class="del" data-act="del" data-id="${e.id}" title="Supprimer">✕</button></div>`;
   }
 
@@ -598,8 +652,8 @@ function viewMonth() {
           <div class="field"><label>Date</label><input class="inp" type="date" id="f-date" value="${date}" min="${k}-01" max="${k}-${lastDay}"></div>
           <div class="field"><label>Note (facultatif)</label><input class="inp" id="f-note" placeholder="ex. Épicerie, Navigo…" value="${esc(editing ? editing.note : '')}"></div>
           <div class="field"><label style="display:flex;justify-content:space-between;align-items:center">Montant
-            <span class="cur-tg">${['€', '$ CA'].map((l, j) => `<button type="button" class="${(j === 1) === UI.inCad ? 'on' : ''}" data-act="incur" data-v="${j}" title="${j ? 'Saisir en dollars canadiens (converti × ' + String(S.settings.rateIn).replace('.', ',') + ')' : 'Saisir en euros'}">${l}</button>`).join('')}</span></label>
-            <input class="inp amtin" id="f-amt" inputmode="decimal" placeholder="${UI.inCad ? '0,00 $' : '0,00 €'}" title="Tu peux taper un calcul : 6,92+2,31" value="${editing ? String(r2(editing.amount)).replace('.', ',') : ''}"></div>
+            <span class="cur-tg">${['€', '$ CA'].map((l, j) => `<button type="button" class="${(j === 1) === UI.inCad ? 'on' : ''}" data-act="incur" data-v="${j}" title="${j ? 'Saisir en ' + S.settings.sec + ' (1 ' + S.settings.cur + ' = ' + String(S.settings.rate).replace('.', ',') + ' ' + S.settings.sec + ')' : 'Saisir en ' + S.settings.cur}">${l}</button>`).join('')}</span></label>
+            <input class="inp amtin" id="f-amt" inputmode="decimal" placeholder="${UI.inCad ? '0,00 $' : '0,00 €'}" title="Tu peux taper un calcul : 6,92+2,31" value="${editing ? String(r2(editing.origCur === 'sec' ? editing.origAmt : editing.amount)).replace('.', ',') : ''}"></div>
           <div class="actions">${editing ? '<button class="btn ghost" type="button" data-act="canceledit">Annuler</button><button class="btn" type="submit">Enregistrer</button>' : '<button class="btn" type="submit">Ajouter</button>'}</div>
         </form>
       </div>
@@ -640,13 +694,15 @@ function viewSettings() {
       <div class="card"><h2>Objectifs mensuels</h2>
         <div class="kv kv3"><span>Revenus visés</span><input class="inp num" style="text-align:right" value="${String(s.incomeTarget).replace('.', ',')}" data-f="set.incomeTarget">${curSel('set.incomeTargetCur', s.incomeTargetCur)}</div>
         <div class="kv kv3"><span>Épargne nette visée</span><input class="inp num" style="text-align:right" value="${String(s.saveTarget).replace('.', ',')}" data-f="set.saveTarget">${curSel('set.saveTargetCur', s.saveTargetCur)}</div>
-        <p class="sec" style="margin:8px 0 0">Les montants en ${esc(s.sec)} sont convertis avec le taux de saisie (1 ${esc(s.sec)} = ${String(s.rateIn).replace('.', ',')} ${esc(s.cur)}).</p>
+        <p class="sec" style="margin:8px 0 0">Les montants en ${esc(s.sec)} sont convertis au taux actuel (1 ${esc(s.cur)} = ${String(s.rate).replace('.', ',')} ${esc(s.sec)}).</p>
       </div>
       <div class="card mt"><h2>Devises</h2>
         <div class="kv"><span>Devise principale</span><select class="inp" data-f="set.cur">${curOpt(s.cur)}</select></div>
         <div class="kv"><span>Afficher aussi en</span><select class="inp" data-f="set.sec">${curOpt(s.sec)}</select></div>
-        <div class="kv"><span>Taux : 1 ${s.cur} =</span><input class="inp num" style="text-align:right" value="${String(s.rate).replace('.', ',')}" data-f="set.rate"></div>
-        <div class="kv"><span>Saisie en ${s.sec} : 1 ${s.sec} =</span><input class="inp num" style="text-align:right" value="${String(s.rateIn).replace('.', ',')}" data-f="set.rateIn"></div>
+        <div class="kv"><span>Taux de conversion</span><select class="inp" data-f="set.rateAuto"><option value="1" ${s.rateAuto ? 'selected' : ''}>Automatique</option><option value="0" ${s.rateAuto ? '' : 'selected'}>Manuel</option></select></div>
+        ${s.rateAuto
+          ? `<div class="kv"><span><b class="num">1 ${s.cur} = ${String(s.rate).replace('.', ',')} ${s.sec}</b><br><span class="sec">${rateInfo()}</span></span><button class="btn sm ghost" data-act="rate-refresh" style="justify-self:end">Actualiser</button></div>`
+          : `<div class="kv"><span>1 ${s.cur} =</span><input class="inp num" style="text-align:right" value="${String(s.rate).replace('.', ',')}" data-f="set.rate"></div>`}
         <div class="kv"><span>Afficher la 2ᵉ devise</span><select class="inp" data-f="set.showSec"><option value="1" ${s.showSec ? 'selected' : ''}>Oui</option><option value="0" ${s.showSec ? '' : 'selected'}>Non</option></select></div>
       </div>
     </div>
@@ -746,7 +802,7 @@ document.addEventListener('click', async ev => {
       { const keep = { d: $('#f-date')?.value, n: $('#f-note')?.value, a: $('#f-amt')?.value }; render(); if (keep.d) { $('#f-date').value = keep.d; $('#f-note').value = keep.n; $('#f-amt').value = keep.a; } } return;
     case 'incur': UI.inCad = el.dataset.v === '1';
       { const keep = { d: $('#f-date')?.value, n: $('#f-note')?.value, a: $('#f-amt')?.value }; render(); if (keep.d) { $('#f-date').value = keep.d; $('#f-note').value = keep.n; $('#f-amt').value = keep.a; } } return;
-    case 'edit': UI.editing = UI.editing === el.dataset.id ? null : el.dataset.id; UI.inCad = UI.editing ? false : dispSec(); break;
+    case 'edit': { UI.editing = UI.editing === el.dataset.id ? null : el.dataset.id; const e = S.entries.find(x => x.id === UI.editing); UI.inCad = e ? e.origCur === 'sec' : dispSec(); break; }
     case 'canceledit': UI.editing = null; break;
     case 'keepseed': delete S.seeded; save(); break;
     case 'wipe': if (!confirm(`Effacer les ${S.entries.length} opérations de tous les mois ?\n\nTes catégories et budgets sont conservés. Pense à faire une sauvegarde avant si tu veux pouvoir revenir en arrière.`)) return;
@@ -767,6 +823,7 @@ document.addEventListener('click', async ev => {
       download(`operations-${todayISO()}.csv`, '﻿' + rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n'), 'text/csv'); return; }
     case 'import': $('#file').value = ''; $('#file').click(); return;
     case 'reveal': window.native.reveal(); return;
+    case 'rate-refresh': el.textContent = '…'; if (!(await refreshRate(true))) { toast('Impossible de joindre le service de taux (connexion Internet ?)'); render(); } return;
     default: return;
   }
   render();
@@ -858,6 +915,14 @@ function noteFromFormula(f) {
   if (!/^[\d.+\-*/()]+$/.test(t) || !/[+\-*/]/.test(t.replace(/^-/, ''))) return '';
   return t.replace(/\./g, ',').replace(/\*/g, ' × ').replace(/\+/g, ' + ').replace(/\//g, ' ÷ ');
 }
+function origFromFormula(f, n) {
+  const t = String(f || '').replace(/\s/g, '').replace(/^=/, '');
+  const m = /^\(?([\d.+\-*/()]+?)\)?\*(0?\.\d+)$/.exec(t) || /^(0?\.\d+)\*\(?([\d.+\-*/()]+?)\)?$/.exec(t);
+  if (!m) return {};
+  const [a, k] = m[1].startsWith('0.') && m[2] && !m[2].startsWith('0.') ? [m[2], m[1]] : [m[1], m[2]];
+  const x = parseAmt(a), r = parseFloat(k);
+  return x > 0 && r > 0 && r < 1 && Math.abs(x * r - n) < 0.02 ? { origAmt: Math.round(x * 100) / 100, origCur: 'sec' } : {};
+}
 function analyze(sheets) {
   const entries = [], names = new Map(), flatTypes = {}, flow = {}, used = []; let est = null, dated = 0;
   const key = name => { const k = norm(name); if (!names.has(k)) names.set(k, String(name).trim()); return k; };
@@ -909,7 +974,8 @@ function analyze(sheets) {
         H.forEach((c, i) => {
           if (i === dc || !hn[i] || IGNORE.has(hn[i])) return;
           const n = toNum(row[i]); if (isNaN(n) || !n) return;
-          entries.push({ date, k: key(c.v), amount: r4(n), dir: null, note: noteFromFormula(row[i].f) }); found++;
+          const o = origFromFormula(row[i].f, n);
+          entries.push({ date, k: key(c.v), amount: r4(n), dir: null, note: noteFromFormula(row[i].f), ...o }); found++;
         });
       }
     }
@@ -991,7 +1057,7 @@ function applyImport(mode) {
   // Un remboursement (crédit) dans une catégorie de dépense vient en déduction, et inversement
   const fresh = kept.map(e => {
     const t = catType[e.k], back = e.dir && ((t === 'income') !== (e.dir === 'in'));
-    return { id: uid(), date: e.date, cat: ids[e.k], amount: back ? -e.amount : e.amount, note: e.note || '' };
+    return { id: uid(), date: e.date, cat: ids[e.k], amount: back ? -e.amount : e.amount, note: e.note || '', origAmt: e.origAmt ? (back ? -e.origAmt : e.origAmt) : null, origCur: e.origCur || null };
   });
   let added = fresh.length;
   if (mode === 'replace') { S.entries = fresh; S.history = {}; }
@@ -1009,7 +1075,7 @@ function importText(txt) {
     const d = JSON.parse(txt);
     if (!Array.isArray(d.entries) || !Array.isArray(d.categories)) throw 0;
     if (!confirm(`Remplacer tes données actuelles par cette sauvegarde (${d.entries.length} opérations) ?`)) return;
-    S = { ...defaults(), ...d, settings: { ...defaults().settings, ...d.settings } }; save(); render(); toast('Sauvegarde restaurée');
+    S = normalize(d); migrateOrig(S); save(); render(); toast('Sauvegarde restaurée');
   } catch { alert("Ce fichier n'est pas une sauvegarde valide de Mes Finances."); }
 }
 document.addEventListener('change', ev => {
@@ -1024,8 +1090,9 @@ document.addEventListener('change', ev => {
     else c[key] = key === 'name' ? (el.value.trim() || c.name) : el.value;
   } else if (scope === 'set') {
     const s = S.settings;
-    if (key === 'cur' || key === 'sec' || key.endsWith('Cur')) s[key] = el.value;
+    if (key === 'cur' || key === 'sec' || key.endsWith('Cur')) { s[key] = el.value; if (key === 'cur' || key === 'sec') { s.rateAt = 0; refreshRate(true); } }
     else if (key === 'showSec') s.showSec = el.value === '1';
+    else if (key === 'rateAuto') { s.rateAuto = el.value === '1'; if (s.rateAuto) refreshRate(true); }
     else { const n = parseAmt(el.value); if (!isNaN(n)) s[key] = n; }
   } else if (scope === 'hist') {
     const k = el.dataset.k;
@@ -1040,18 +1107,24 @@ document.addEventListener('submit', ev => {
   const rawAmt = $('#f-amt').value.trim(); let amount = parseAmt(rawAmt), date = $('#f-date').value, note = $('#f-note').value.trim();
   if (!isNaN(amount)) {
     const shown = rawAmt.replace(/\s/g, '').replace(/\./g, ',').replace(/\+/g, ' + ');
-    if (UI.inCad) { note = [note, `${shown} $ CA`].filter(Boolean).join(' · '); amount = Math.round(amount * S.settings.rateIn * 10000) / 10000; }
-    else if (isExpr(rawAmt)) note = [note, shown].filter(Boolean).join(' · ');
+    if (isExpr(rawAmt) && !note.includes(shown)) note = [note, shown + (UI.inCad ? ' $' : '')].filter(Boolean).join(' · ');
   }
+  // En 2ᵉ devise : on garde le montant d'origine, et sa contre-valeur au taux du jour
+  const orig = UI.inCad && !isNaN(amount) ? { origAmt: amount, origCur: 'sec' } : { origAmt: null, origCur: null };
+  if (UI.inCad && !isNaN(amount)) amount = Math.round(amount / S.settings.rate * 10000) / 10000;
   if (isNaN(amount) || amount <= 0) { $('#f-amt').focus(); $('#f-amt').select(); toast('Entre un montant positif'); return; }
   if (!date) return;
   if (UI.editing) {
     const e = S.entries.find(x => x.id === UI.editing);
-    if (e) Object.assign(e, { amount, date, note });
+    if (e) {
+      // montant inchangé dans la même devise : on ne reconvertit pas
+      const same = e.origCur === orig.origCur && (orig.origCur ? e.origAmt === orig.origAmt : r2(e.amount) === r2(amount));
+      Object.assign(e, same ? { date, note } : { amount, date, note, ...orig });
+    }
     UI.editing = null; toast('Modifié');
   } else {
-    S.entries.push({ id: uid(), date, cat: UI.cat, amount, note });
-    toast(`${catById(UI.cat).name} · ${money(amount)} ajouté`);
+    S.entries.push({ id: uid(), date, cat: UI.cat, amount, note, ...orig });
+    toast(`${catById(UI.cat).name} · ${orig.origCur ? money(orig.origAmt, S.settings.sec) : money(amount, S.settings.cur)} ajouté`);
   }
   UI.lastDate[UI.month] = date;
   if (date.slice(0, 7) !== UI.month) UI.month = date.slice(0, 7);
