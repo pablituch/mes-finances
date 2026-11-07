@@ -1,3 +1,5 @@
-- Changer la devise principale convertit maintenant vraiment tous les montants (opérations, budgets, objectifs)
-- Passer de € à $ CA et revenir redonne exactement les mêmes chiffres
-- Option « Changer seulement le symbole » pour corriger une devise mal choisie sans toucher aux chiffres
+- Filtres sur les opérations : plusieurs catégories à la fois, recherche, sur le mois ou toute la période
+- Icônes de catégories : plus de 45 icônes au choix, couleurs, ou ta propre image
+- Mode clair, sombre ou automatique (comme Windows)
+- Bouton « Masquer les montants » : n'affiche que des pourcentages pour montrer tes comptes sans tout dévoiler
+- Correction : le choix de devise à la saisie affiche les vraies devises du profil
