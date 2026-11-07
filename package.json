@@ -1,0 +1,52 @@
+{
+  "name": "mes-finances",
+  "productName": "Mes Finances",
+  "version": "1.1.0",
+  "description": "Suivi de mes dépenses mensuelles et résumé annuel",
+  "main": "main.js",
+  "author": "Moi",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "com.perso.mesfinances",
+    "productName": "Mes Finances",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mes Finances",
+      "artifactName": "MesFinances-Installation.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "pablituch",
+        "repo": "mes-finances",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  }
+}

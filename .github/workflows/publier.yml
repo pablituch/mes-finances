@@ -1,0 +1,26 @@
+name: Publier une version
+
+# Se lance tout seul à chaque envoi sur la branche main,
+# ou à la main depuis l'onglet « Actions » → « Run workflow ».
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # pour créer la « Release » avec l'installateur
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      # Construit MesFinances-Installation.exe et le publie dans une Release « vX.Y.Z ».
+      # Si cette version existe déjà, rien n'est republié : pense à augmenter "version" dans package.json.
+      - run: npx electron-builder --win nsis --x64 --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

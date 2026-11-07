@@ -1,0 +1,60 @@
+MES FINANCES — mode d'emploi
+============================
+
+ESSAYER TOUT DE SUITE (sans rien installer)
+  Double-clique sur app\index.html : l'app s'ouvre dans ton navigateur.
+  (Les données restent alors dans ce navigateur.)
+
+CRÉER LE .EXE (une seule fois)
+  0. Si Windows affiche une erreur « symbolic link » : clic droit sur CREER-EXE.bat → Exécuter en tant qu'administrateur.
+  1. Installe Node.js (version LTS) : https://nodejs.org/fr
+  2. Double-clique sur CREER-EXE.bat
+  3. Après ~2-3 minutes, tu obtiens dist\MesFinances-Installation.exe
+     → double-clique dessus : l'app s'installe (sans droits admin) et crée un raccourci sur le Bureau.
+  Windows SmartScreen peut avertir (appli non signée) : "Informations complémentaires" → "Exécuter quand même".
+
+TES DONNÉES (version .exe)
+  Enregistrées automatiquement dans : %APPDATA%\Mes Finances\finances.json
+  Une copie de sécurité par jour dans : %APPDATA%\Mes Finances\sauvegardes\ (30 derniers jours)
+  Réglages → "Sauvegarder (.json)" pour faire une copie ailleurs (clé USB, Drive…).
+  Pour passer de la version navigateur au .exe : Sauvegarder (.json) dans le navigateur,
+  puis "Restaurer une sauvegarde" dans le .exe.
+
+PARTAGER L'APPLI AVEC QUELQU'UN
+  Option A : envoie MesFinances-Installation.exe (clé USB, WeTransfer, Drive…, dans un .zip).
+  Option B (si Windows bloque tout) : envoie Version-navigateur.html.
+     Elle s'ouvre dans Chrome ou Edge, sans rien installer, avec exactement la même app.
+     Les données restent dans ce navigateur : utiliser « Sauvegarder (.json) » de temps en temps.
+  Tes données NE SONT PAS dans le .exe : elles restent sur ton ordinateur.
+  La personne arrive sur un écran de bienvenue vide, et peut :
+    - importer son propre fichier Excel (.xlsx) ou CSV, ou
+    - saisir ses dépenses à la main.
+
+IMPORTER UN FICHIER EXCEL
+  Budget & réglages → « Importer (Excel, CSV ou sauvegarde) ».
+  Deux formats reconnus :
+    1) Le format de ton tableur : un onglet par mois, une colonne « Date »,
+       puis une colonne par catégorie. Les colonnes de totaux (Dépense,
+       Investissement possible, Cumul…) sont ignorées. Un bloc « Estimation »
+       devient les budgets mensuels.
+    2) Un tableau / export bancaire : Date | Catégorie | Montant (ou Débit + Crédit) | Libellé.
+       Les virements internes peuvent être « Ignorés » et plusieurs catégories regroupées.
+  Avant d'importer, l'app montre ce qu'elle a trouvé et te laisse choisir si
+  chaque catégorie est une dépense, un revenu ou un investissement.
+  Google Sheets : Fichier → Télécharger → Microsoft Excel (.xlsx).
+
+REMISE À ZÉRO (Budget & réglages → Remise à zéro)
+  « Effacer toutes les opérations » : vide tous les mois, garde catégories et budgets.
+  « Réinitialiser l'application »   : remet l'app comme au premier lancement.
+  Pense à « Sauvegarder (.json) » avant, pour pouvoir revenir en arrière.
+
+UTILISATION
+  Mois    : choisis la catégorie, tape le montant, Entrée. Clique une ligne pour la modifier.
+            Flèches ← → du clavier pour changer de mois.
+  Aperçu  : résumé de l'année, courbe d'épargne cumulée (survole-la), répartition des dépenses.
+  Réglages: budgets par catégorie, objectifs, taux EUR→CAD, historique d'avant l'app.
+
+CALCULS (identiques à ton tableur)
+  Net du mois      = Apports − dépenses (l'investissement n'est pas compté comme une perte)
+  Dispo après inv. = Net − Investissement   (ta case "Investissement possible")
+  Cumulé           = cumul du mois précédent + Net du mois
