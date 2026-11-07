@@ -149,6 +149,14 @@ tfoot td{font-weight:650;border-top:2px solid var(--line)}
 .imp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
 .imp-stats div{background:var(--bg);border-radius:12px;padding:10px 12px}.imp-stats b{display:block;font-size:18px}
 .imp-cat{display:grid;grid-template-columns:1fr 150px 150px;gap:10px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.upd{position:fixed;right:22px;bottom:22px;width:360px;z-index:60;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.18);animation:updIn .25s ease}
+@keyframes updIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.upd h3{margin:0 0 4px;font-size:15.5px;display:flex;align-items:center;gap:9px}
+.upd h3 i{width:26px;height:26px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-style:normal;font-size:14px}
+.upd p{margin:0 0 14px;font-size:13.5px;color:var(--muted)}
+.upd .notes{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:12.5px;color:var(--ink2);margin:-4px 0 14px;max-height:110px;overflow:auto;white-space:pre-line}
+.upd .track{height:10px}.upd .fill{background:var(--green);transition:width .2s}
+.upd .pct{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:7px}
 .banner{display:flex;align-items:center;gap:14px;justify-content:space-between;background:var(--green-soft);border-radius:16px;padding:12px 16px;margin-bottom:16px;font-size:14px}
 
 /* Settings */
@@ -176,6 +184,7 @@ tfoot td{font-weight:650;border-top:2px solid var(--line)}
 </div>
 <div class="toast" id="toast"></div>
 <div id="modal"></div>
+<div id="upd"></div>
 <input type="file" id="file" accept=".xlsx,.xlsm,.csv,.json" hidden>
 
 <script>
@@ -918,6 +927,50 @@ document.addEventListener('keydown', ev => {
   if (ev.key === 'ArrowRight') { UI.month = addM(UI.month, 1); render(); }
 });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => UI.view === 'overview' && drawChart(), 120); });
+
+
+/* ---------- Mises à jour (version installée uniquement) ---------- */
+const UPD = { dismissed: null };
+function updUI(m) {
+  const root = $('#upd'), mb = n => (n / 1048576).toFixed(1).replace('.', ',') + ' Mo';
+  if (!m) { root.innerHTML = ''; return; }
+  // Le panneau n'est créé qu'une fois (animation d'apparition), ensuite seul son contenu change
+  const show = html => { if (!root.firstElementChild) root.innerHTML = '<div class="upd"></div>'; root.firstElementChild.innerHTML = html; };
+  if (m.type === 'available') {
+    if (UPD.dismissed === m.version || UPD.busy) return;
+    UPD.version = m.version;
+    const notes = String(m.notes || '').replace(/<[^>]+>/g, '\n').replace(/\n{2,}/g, '\n').trim();
+    show(`<h3><i>↓</i>Nouvelle version ${esc(m.version)}</h3>
+      <p>Une mise à jour de Mes Finances est disponible. Tes données sont conservées.</p>
+      ${notes ? `<div class="notes">${esc(notes)}</div>` : ''}
+      <div class="actions" style="justify-content:flex-end"><button class="btn sm ghost" data-act="upd-later">Plus tard</button><button class="btn sm" data-act="upd-dl">Télécharger</button></div>`);
+  } else if (m.type === 'progress') {
+    const pct = Math.max(0, Math.min(100, m.percent || 0));
+    show(`<h3><i>↓</i>Téléchargement de la version ${esc(UPD.version || '')}…</h3>
+      <p>Tu peux continuer à utiliser l'app pendant ce temps.</p>
+      <div class="track"><div class="fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="pct"><span>${Math.round(pct)} %</span><span>${m.total ? mb(m.transferred) + ' / ' + mb(m.total) : ''}</span></div>`);
+  } else if (m.type === 'downloaded') {
+    UPD.busy = false;
+    show(`<h3><i>✓</i>Version ${esc(m.version)} prête</h3>
+      <p>Redémarre l'app pour installer la mise à jour. Sinon, elle s'installera à la prochaine fermeture.</p>
+      <div class="actions" style="justify-content:flex-end"><button class="btn sm ghost" data-act="upd-close">Plus tard</button><button class="btn sm" data-act="upd-install">Redémarrer et installer</button></div>`);
+  } else if (m.type === 'error') {
+    UPD.busy = false;
+    show(`<h3><i>!</i>Téléchargement interrompu</h3>
+      <p>Vérifie ta connexion Internet. L'app te reproposera la mise à jour au prochain lancement.</p>
+      <div class="actions" style="justify-content:flex-end"><button class="btn sm" data-act="upd-close">OK</button></div>`);
+  }
+}
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act^="upd-"]'); if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'upd-later') { UPD.dismissed = UPD.version; updUI(null); }
+  if (a === 'upd-close') updUI(null);
+  if (a === 'upd-dl') { UPD.busy = true; updUI({ type: 'progress', percent: 0 }); window.native && window.native.updateDownload(); }
+  if (a === 'upd-install') { $('#upd').firstElementChild.innerHTML = '<h3><i>↻</i>Installation…</h3><p>L\'app va se fermer puis se rouvrir.</p>'; window.native && window.native.updateInstall(); }
+});
+if (window.native && window.native.onUpdate) window.native.onUpdate(updUI);
 
 /* ---------- Démarrage ---------- */
 (async () => {

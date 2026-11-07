@@ -17,25 +17,26 @@ function createWindow() {
   setupUpdates(win);
 }
 
-// Mises à jour automatiques depuis les « Releases » GitHub
+// Mises à jour depuis les « Releases » GitHub :
+// 1) l'app demande avant de télécharger, 2) barre de progression, 3) demande de redémarrer pour installer.
+let updWin = null, downloading = false;
 function setupUpdates(win) {
   if (!app.isPackaged) return;
-  autoUpdater.autoDownload = true;          // télécharge en arrière-plan
-  autoUpdater.autoInstallOnAppQuit = true;  // sinon s'installe à la fermeture
-  autoUpdater.on('update-downloaded', async info => {
-    const r = await dialog.showMessageBox(win, {
-      type: 'info', title: 'Mise à jour disponible',
-      buttons: ['Redémarrer maintenant', 'Plus tard'], defaultId: 0, cancelId: 1,
-      message: `La version ${info.version} de Mes Finances est prête.`,
-      detail: "Tes données sont conservées. Si tu choisis « Plus tard », elle s'installera à la prochaine fermeture de l'app.",
-    });
-    if (r.response === 0) autoUpdater.quitAndInstall();
-  });
-  autoUpdater.on('error', () => {}); // pas d'Internet, GitHub indisponible… on réessaiera au prochain lancement
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  check();
+  updWin = win;
+  autoUpdater.autoDownload = false;          // on attend le « oui » de l'utilisateur
+  autoUpdater.autoInstallOnAppQuit = true;   // une fois téléchargée (donc acceptée), s'installe au pire à la fermeture
+  const send = m => { if (!win.isDestroyed()) win.webContents.send('update', m); };
+  const notes = n => typeof n === 'string' ? n : Array.isArray(n) ? n.map(x => x.note || '').join('\n') : '';
+  autoUpdater.on('update-available', info => send({ type: 'available', version: info.version, notes: notes(info.releaseNotes) }));
+  autoUpdater.on('download-progress', p => { win.setProgressBar(p.percent / 100); send({ type: 'progress', percent: p.percent, transferred: p.transferred, total: p.total }); });
+  autoUpdater.on('update-downloaded', info => { downloading = false; win.setProgressBar(-1); send({ type: 'downloaded', version: info.version }); });
+  autoUpdater.on('error', () => { win.setProgressBar(-1); if (downloading) send({ type: 'error' }); downloading = false; });
+  const check = () => { if (!downloading) autoUpdater.checkForUpdates().catch(() => {}); };
+  win.webContents.once('did-finish-load', check);
   setInterval(check, 6 * 60 * 60 * 1000);
 }
+ipcMain.handle('update:download', () => { downloading = true; autoUpdater.downloadUpdate().catch(() => {}); });
+ipcMain.handle('update:install', () => setImmediate(() => autoUpdater.quitAndInstall(false, true)));
 
 ipcMain.handle('load', () => {
   try { return JSON.parse(fs.readFileSync(dataFile(), 'utf8')); } catch { return null; }

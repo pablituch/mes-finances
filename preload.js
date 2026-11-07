@@ -6,4 +6,7 @@ contextBridge.exposeInMainWorld('native', {
   importFile: () => ipcRenderer.invoke('import'),
   reveal: () => ipcRenderer.invoke('reveal'),
   version: () => ipcRenderer.invoke('version'),
+  onUpdate: cb => ipcRenderer.on('update', (_e, m) => cb(m)),
+  updateDownload: () => ipcRenderer.invoke('update:download'),
+  updateInstall: () => ipcRenderer.invoke('update:install'),
 });
