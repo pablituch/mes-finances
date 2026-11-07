@@ -1,0 +1,3 @@
+- La mise à jour demande maintenant avant de se télécharger
+- Barre de progression pendant le téléchargement
+- Bouton « Redémarrer et installer » une fois prête

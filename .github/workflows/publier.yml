@@ -1,7 +1,7 @@
 name: Publier une version
 
-# Se lance tout seul à chaque envoi sur la branche main,
-# ou à la main depuis l'onglet « Actions » → « Run workflow ».
+# Se lance à chaque envoi sur la branche main (ou à la main : onglet « Actions » → « Run workflow »).
+# Ne construit que si le numéro de "version" de package.json n'a pas encore été publié.
 on:
   push:
     branches: [main]
@@ -15,12 +15,24 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Cette version existe-t-elle déjà ?
+        id: v
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" >/dev/null 2>&1; then echo "nouvelle=non" >> "$GITHUB_OUTPUT"; echo "v$V déjà publiée : rien à faire."; else echo "nouvelle=oui" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.v.outputs.nouvelle == 'oui'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install --no-audit --no-fund
-      # Construit MesFinances-Installation.exe et le publie dans une Release « vX.Y.Z ».
-      # Si cette version existe déjà, rien n'est republié : pense à augmenter "version" dans package.json.
-      - run: npx electron-builder --win nsis --x64 --publish always
+      - if: steps.v.outputs.nouvelle == 'oui'
+        run: npm install --no-audit --no-fund
+      # Construit MesFinances-Installation.exe et le publie dans la Release « vX.Y.Z »,
+      # avec le contenu de NOUVEAUTES.md comme description (affiché dans l'app lors de la mise à jour).
+      - if: steps.v.outputs.nouvelle == 'oui'
+        run: npx electron-builder --win nsis --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
